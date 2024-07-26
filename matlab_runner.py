@@ -14,14 +14,15 @@ default_values = {'SigmaX':0.13,
     'X0':7.0,
     'Y0':7.0,
     'DFR':60.0,
-    'EAR':10.0,
-    'PER':2.0,
-    'PFO':10.0,
-    'PFD':10.0,
+    'EAR':10.0, #Being changed
+    'PER':2.0, #Being changed
+    'PFO':10.0, # Being changed
+    'PFD':10.0, # Needs to ask the author
     'Polarity':1,
     'ElectrodeArraySize':3,
     'ElectrodeArrayStructure':1
 }
+
 def file_iterator(directory):
     for filename in os.listdir(directory):
         file_path = os.path.join(directory, filename)
@@ -29,6 +30,16 @@ def file_iterator(directory):
             yield file_path
 
 dir_name_format_string = "products/{video_name}_{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}"
+
+def validate_suite_exists(video_name, **kwargs):
+    directory = dir_name_format_string.format(video_name = video_name, **kwargs)
+    if not os.path.isdir(directory):
+        return False
+    if not os.path.isfile(os.path.join(directory,'ProstheticVideo.mp4')):
+        return False
+    if not os.path.isfile(os.path.join(directory,'original_video.mp4')):
+        return False
+    return True
 
 def extract_parameters_from_dir_name(dirname):
     # Parse the input string
@@ -53,15 +64,18 @@ def run_matlab(eng, videofile, SigmaX=0.13, SigmaY=0.13, X0=7.0, Y0=7.0, DFR=60.
     # Clear any previous warnings
     eng.eval("lastwarn('')", nargout=0)
     try:
+        engine_kwargs = {'background':True, 'nargout':1}
         # Call a MATLAB function and get the result
-        video_name = eng.main_function(videofile, SigmaX, SigmaY, X0, Y0, DFR, EAR, PER, PFO,PFD, Polarity, ElectrodeArraySize, ElectrodeArrayStructure, nargout =1)
-        print(f'The video created is {video_name}')
+        video_name_future = eng.main_function(videofile, SigmaX, SigmaY, X0, Y0, DFR, EAR, PER, PFO,PFD, Polarity, ElectrodeArraySize, ElectrodeArrayStructure, **engine_kwargs)
+        #print(f'The video created is {video_name}')
 
         
         # Check for warnings
         warning_msg = eng.eval("lastwarn")
         if warning_msg:
             print("MATLAB warning:", warning_msg)
+
+        return video_name_future
 
     except matlab.engine.MatlabExecutionError as err:
         print("MATLAB execution error:", err)
@@ -71,17 +85,28 @@ def run_matlab(eng, videofile, SigmaX=0.13, SigmaY=0.13, X0=7.0, Y0=7.0, DFR=60.
 
 def run_simulation_if_new_params(eng, videofile, **kwargs):
     video_name,_ = os.path.splitext(videofile)
-    print(video_name)
-    directory = dir_name_format_string.format(video_name = video_name, **kwargs)
-    if not os.path.isdir(directory):
-        run_matlab(eng, videofile, **kwargs)
-    return directory
+    if not validate_suite_exists(video_name, **kwargs):
+        return run_matlab(eng, videofile, **kwargs)
+    else:
+        engine_kwargs = {'background':True, 'nargout':0}
+        return eng.dummy_function(**engine_kwargs)
 
 def measure_contour_detection(eng, original_videofile, **kwargs):
-    directory = run_simulation_if_new_params(eng, original_videofile,**kwargs)
-    shutil.copy(original_videofile, os.path.join(directory, 'original_video.mp4'))
+    video_name,_ = os.path.splitext(original_videofile)
+    directory = dir_name_format_string.format(video_name = video_name, **kwargs)
+    os.makedirs(directory, exist_ok=True)
+    new_video_path = os.path.join(directory, 'original_video.mp4')
+    shutil.copy(original_videofile, new_video_path)
+    return run_simulation_if_new_params(eng, videofile = new_video_path,**kwargs)
+    #extract_frames_and_compare(original_videofile, **kwargs)
+    #return future
+        
+def extract_frames_and_compare(original_videofile, **kwargs):
+    video_name,_ = os.path.splitext(original_videofile)
+    directory = dir_name_format_string.format(video_name = video_name, **kwargs)
+    new_video_path = os.path.join(directory, 'original_video.mp4')
     # Get first frame of the original video and save as image
-    with video_capture_context(original_videofile) as cap:
+    with video_capture_context(new_video_path) as cap:
         frame_id, first_frame = extract_frame_at_time(cap,0)
         original_frame_filename = os.path.join(directory, f'orig_frame_{frame_id:04d}.png')
         cv2.imwrite(original_frame_filename, first_frame)
@@ -94,13 +119,51 @@ def measure_contour_detection(eng, original_videofile, **kwargs):
         last_frame_id, last_frame = extract_frame_at_time(cap,-1)
         analyzed_frame_filename = os.path.join(directory, f'orig_frame_{last_frame_id:04d}.png')
         cv2.imwrite(analyzed_frame_filename, last_frame)
-
-    # Compare them using the chosen method
     return compare_contours(original_frame_filename, analyzed_frame_filename)
 
-eng = matlab.engine.start_matlab()
-print(measure_contour_detection(eng, 'HeadMovementEllipse.mp4', **default_values))
-print(measure_contour_detection(eng, 'HeadMovementRect.mp4', **default_values))
-print(measure_contour_detection(eng, 'HeadMovementTriangle.mp4', **default_values))
-# Stop the MATLAB engine
-eng.quit()
+def generate_suite_of_simulation_parameters():
+    """ These values were tested in the paper, see Table 3"""
+    # For the temporal aspects, only EAR = 10 is used
+    #EAR_range = [6.0, 10.0, 30.0]
+    EAR_range = [10.0]
+    PER_range = [0.0, 3.0]
+    PFO_range = [0.5,1.0]
+    PFD_range = [2.0]
+    values = default_values
+    for i in EAR_range:
+        values['EAR'] = i
+        for j in PER_range:
+            values['PER'] = j
+            for k in PFO_range:
+                values['PFO'] = k
+                for l in PFD_range:
+                    values['PFD'] = l
+                    yield values
+
+suite = list(generate_suite_of_simulation_parameters())
+print(suite)
+videos = ['HeadMovementEllipse.mp4', 'HeadMovementRect.mp4', 'HeadMovementTriangle.mp4']
+engs = [None] * len(videos)
+# Create a MATLAB process for each video which runs it in all 135 possible combinations
+for i,_ in enumerate(videos):
+    engs[i] = matlab.engine.start_matlab()
+for values in suite:
+    res_futures = [None] * len(videos)
+    results = [None] * len(videos)
+    for i,video_name in enumerate(videos):
+        res_futures[i] = measure_contour_detection(engs[i], video_name, **values)
+    for i,video_name in enumerate(videos):
+        res_futures[i].result()
+        results[i] = extract_frames_and_compare(video_name, **values)
+    for i,video_name in enumerate(videos):
+        print(f'Result for video {video_name} with parameters:')
+        print('    EAR = {},'.format(values['EAR']))
+        print('    PER = {},'.format(values['PER']))
+        print('    PFO = {},'.format(values['PFO']))
+        print('is: ')
+        print(results[i])
+# Stop the MATLAB engines
+for i,_ in enumerate(videos):
+    engs[i].quit()
+
+#TODO: Debug the code! No video was generated, then probably something failed inside the MATLAB code

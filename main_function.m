@@ -6,7 +6,6 @@ PF_Factor = PFO/(1/EAR);
 PolarityVal = Polarity;
 sizeval = ElectrodeArraySize;
 val = ElectrodeArrayStructure;
-
 if PolarityVal == 1 %%%%% BH %%%%%
     va = 0; vb = 0.333; vc = 0.667; vd = 1;
 elseif PolarityVal == 2 %%%%% BH %%%%%
@@ -142,6 +141,7 @@ for frame = 1:Sample:V.NumFrames % running on the sampled video frames
 end
 %% Prosthetic vision video
 video_file_name = strcat(folderName,'/ProstheticVideo.mp4');
+warning(video_file_name);
 video = VideoWriter(video_file_name,'MPEG-4');% create new video
 video.FrameRate = DFR;
 open(video);% open video
