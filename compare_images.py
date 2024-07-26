@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -89,6 +90,8 @@ def compare_contours(orig_image_path, analyzed_image_path):
     # cv2.destroyAllWindows()
     # Ensure there is at least one contour to compare
     if contours1 and contours2:
+        # print(len(contours1))
+        # print(len(contours2))
         # Compare the first contour from each image
         contour1 = contours1[0]
         contour2 = contours2[0]
@@ -99,32 +102,8 @@ def compare_contours(orig_image_path, analyzed_image_path):
     else:
         raise Exception("Could not discern contours to compare")
 
-# res =compare_contours('from_paper.png', '007.png')
-# print(f'Match Score: {res}')
-# if res == 0:
-#     print('Perfect match!')
-
-
-# res =compare_contours('from_paper.png', '156.png')
-# print(f'Match Score: {res}')
-# if res == 0:
-#     print('Perfect match!')
-
-
-# res =compare_contours('from_paper.png', 'orig_wrong_resolution.png')
-# print(f'Match Score: {res}')
-# if res == 0:
-#     print('Perfect match!')
-
-
-# res =compare_contours('from_paper.png', '024.png')
-# print(f'Match Score: {res}')
-# if res == 0:
-#     print('Perfect match!')
-
-
-
-# res =compare_contours('0239.png', '240.png')
-# print(f'Match Score: {res}')
-# if res == 0:
-#     print('Perfect match!')
+# product_dir_with_per_3 = "products/HeadMovementEllipse_0.130_0.130_7.000_7.000_60.000_10.000_3.000_1.000_2.000_1.000_3.000_1.000"
+# product_dir_with_per_0 = "products/HeadMovementEllipse_0.130_0.130_7.000_7.000_60.000_10.000_3.000_1.000_2.000_1.000_3.000_1.000"
+# orig_image = os.path.join(product_dir, 'first_orig_frame.png')
+# analysed_image = os.path.join(product_dir, 'last_analysed_frame.png')
+# print(compare_contours(orig_image, analysed_image))

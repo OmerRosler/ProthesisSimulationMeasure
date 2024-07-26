@@ -1,8 +1,10 @@
 import os
+import itertools
 import cv2
 import shutil
 from contextlib import contextmanager
 from parse import parse
+import copy
 
 import matlab.engine
 
@@ -108,7 +110,7 @@ def extract_frames_and_compare(original_videofile, **kwargs):
     # Get first frame of the original video and save as image
     with video_capture_context(new_video_path) as cap:
         frame_id, first_frame = extract_frame_at_time(cap,0)
-        original_frame_filename = os.path.join(directory, f'orig_frame_{frame_id:04d}.png')
+        original_frame_filename = os.path.join(directory, f'first_orig_frame.png')
         cv2.imwrite(original_frame_filename, first_frame)
     # Get last frame of the synthesized video and save as image
     new_video = os.path.join(directory, 'ProstheticVideo.mp4')
@@ -117,7 +119,7 @@ def extract_frames_and_compare(original_videofile, **kwargs):
     with video_capture_context(new_video) as cap:
         # The videos created stop after the movement, where we extract the frame
         last_frame_id, last_frame = extract_frame_at_time(cap,-1)
-        analyzed_frame_filename = os.path.join(directory, f'orig_frame_{last_frame_id:04d}.png')
+        analyzed_frame_filename = os.path.join(directory, f'last_analysed_frame.png')
         cv2.imwrite(analyzed_frame_filename, last_frame)
     return compare_contours(original_frame_filename, analyzed_frame_filename)
 
@@ -129,16 +131,14 @@ def generate_suite_of_simulation_parameters():
     PER_range = [0.0, 3.0]
     PFO_range = [0.5,1.0]
     PFD_range = [2.0]
-    values = default_values
-    for i in EAR_range:
-        values['EAR'] = i
-        for j in PER_range:
-            values['PER'] = j
-            for k in PFO_range:
-                values['PFO'] = k
-                for l in PFD_range:
-                    values['PFD'] = l
-                    yield values
+    for EAR,PER,PFO,PFD in itertools.product(EAR_range, PER_range,PFO_range, PFD_range):
+        values = copy.deepcopy(default_values)
+        values['EAR'] = EAR
+        values['PER'] = PER
+        values['PFO'] = PFO
+        values['PFD'] = PFD
+        yield values
+
 
 suite = list(generate_suite_of_simulation_parameters())
 print(suite)
@@ -165,5 +165,3 @@ for values in suite:
 # Stop the MATLAB engines
 for i,_ in enumerate(videos):
     engs[i].quit()
-
-#TODO: Debug the code! No video was generated, then probably something failed inside the MATLAB code
