@@ -83,8 +83,7 @@ def run_matlab(eng, videofile, SigmaX=0.13, SigmaY=0.13, X0=7.0, Y0=7.0, DFR=60.
 
 
 
-def run_simulation_if_new_params(eng, videofile, **kwargs):
-    video_name,_ = os.path.splitext(videofile)
+def run_simulation_if_new_params(eng, video_name, videofile, **kwargs):
     if not validate_suite_exists(video_name, **kwargs):
         return run_matlab(eng, videofile, **kwargs)
     else:
@@ -92,12 +91,13 @@ def run_simulation_if_new_params(eng, videofile, **kwargs):
         return eng.dummy_function(**engine_kwargs)
 
 def measure_contour_detection(eng, original_videofile, **kwargs):
-    video_name,_ = os.path.splitext(original_videofile)
+    base_name = os.path.basename(original_videofile)
+    video_name,_ = os.path.splitext(base_name)
     directory = dir_name_format_string.format(video_name = video_name, **kwargs)
     os.makedirs(directory, exist_ok=True)
     new_video_path = os.path.join(directory, 'original_video.mp4')
     shutil.copy(original_videofile, new_video_path)
-    return run_simulation_if_new_params(eng, videofile = new_video_path,**kwargs)
+    return run_simulation_if_new_params(eng, video_name = video_name, videofile = new_video_path,**kwargs)
     #extract_frames_and_compare(original_videofile, **kwargs)
     #return future
         
