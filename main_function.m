@@ -15,8 +15,6 @@ end
 % MMr - number of rows; MMc - number of columns;
 % R = number of pixel rows; C = number of pixel columns
 
-%f = waitbar(0,'Please wait...');
-%pause(.5)
 % define number of electrodes
 if sizeval == 1 %%%%% 60 electrodes %%%%%
     MMr = 6; MMc = 10; C = 240; R = 144; % In the GUI, choose: phosphene size 0.4; X0 and Y0 = 24
@@ -60,8 +58,6 @@ V = VideoReader(chosenfile); % loading a video %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Sample = round(V.FrameRate/EAR); % sampling the video according to the electrode activation rate
 % I = imread('Lena.png'); % loading an image instead of a video - this command enforce other changes in the code.
 
-%waitbar(.5,f,'Processing your data');
-%pause(1)
 for frame = 1:Sample:V.NumFrames % running on the sampled video frames
     I = read(V,frame);
     % Only for color
@@ -145,13 +141,10 @@ for frame = 1:Sample:V.NumFrames % running on the sampled video frames
     end
 end
 %% Prosthetic vision video
-%images = cell (round(V.NumFrames*(DFR/V.FrameRate)),1); % for video
-% images = cell (1,1); % for image
 video_file_name = strcat(folderName,'/ProstheticVideo.mp4');
-video = VideoWriter(strcat(video_file_name,'.mp4'),'MPEG-4');% create new video
+video = VideoWriter(video_file_name,'MPEG-4');% create new video
 video.FrameRate = DFR;
 open(video);% open video
-%cmap = gray(256);% determine color map
 % srcFiles = dir('C:\Users\...................................\*.png');% define the folder path
 srcFiles = dir(strcat(folderName,'/*.png'));% define the folder path
 
@@ -159,12 +152,8 @@ for p =1:min(count,V.NumFrames*(DFR/V.FrameRate)) % for video
     % for p =1:1  % for image
     framename = strcat(folderName,'/',srcFiles(p).name);% define the folder path
     img = imread(framename); % insert it to 'images'
-    %frame = immovie(images{p}, cmap);% insert each frame to the video
     writeVideo(video, img);% insert each frame to the video
 end
-close(video);% close video
-%waitbar(1,f,'Finishing');
-%pause(1)
-toc
-close all;
+close(video);
+
 end

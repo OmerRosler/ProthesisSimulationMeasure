@@ -8,7 +8,8 @@ function [folderName] = generate_name_for_video_file(chosenfile,SigmaX,SigmaY, X
         throw(ME);
     end
     strs = {fileName, tostr3(SigmaX), tostr3(SigmaY), tostr3(X0), tostr3(Y0), tostr3(DFR), tostr3(EAR), tostr3(PER), tostr3(PFO), tostr3(PFD), tostr3(Polarity), tostr3(ElectrodeArraySize), tostr3(ElectrodeArrayStructure)};
-    folderName = strjoin(strs,'_');
+    encodedName = strjoin(strs,'_');
+    folderName = strcat('products/',encodedName)
     mkdir(folderName);
 end
 function [str] = tostr3(num)

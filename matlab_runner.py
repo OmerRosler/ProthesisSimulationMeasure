@@ -1,5 +1,6 @@
 import os
 import cv2
+import shutil
 from contextlib import contextmanager
 from parse import parse
 
@@ -27,7 +28,7 @@ def file_iterator(directory):
         if os.path.isfile(file_path):
             yield file_path
 
-dir_name_format_string = "{video_name}_{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}"
+dir_name_format_string = "products/{video_name}_{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}"
 
 def extract_parameters_from_dir_name(dirname):
     # Parse the input string
@@ -49,10 +50,23 @@ def run_matlab(eng, videofile, SigmaX=0.13, SigmaY=0.13, X0=7.0, Y0=7.0, DFR=60.
         ElectrodeArrayStructure:   electrode array structure (square(val = 1) or hexagonal(2)).
             Currently, the hexagonal structure is pixelized when combined with temporal effects
     """
-    # Call a MATLAB function
-    video_name = eng.main_function(videofile, SigmaX, SigmaY, X0, Y0, DFR, EAR, PER, PFO,PFD, Polarity, ElectrodeArraySize, ElectrodeArrayStructure)
+    # Clear any previous warnings
+    eng.eval("lastwarn('')", nargout=0)
+    try:
+        # Call a MATLAB function and get the result
+        video_name = eng.main_function(videofile, SigmaX, SigmaY, X0, Y0, DFR, EAR, PER, PFO,PFD, Polarity, ElectrodeArraySize, ElectrodeArrayStructure, nargout =1)
+        print(f'The video created is {video_name}')
 
-    print(f'The video created is {video_name}')
+        
+        # Check for warnings
+        warning_msg = eng.eval("lastwarn")
+        if warning_msg:
+            print("MATLAB warning:", warning_msg)
+
+    except matlab.engine.MatlabExecutionError as err:
+        print("MATLAB execution error:", err)
+        raise
+
 
 
 def run_simulation_if_new_params(eng, videofile, **kwargs):
@@ -65,6 +79,7 @@ def run_simulation_if_new_params(eng, videofile, **kwargs):
 
 def measure_contour_detection(eng, original_videofile, **kwargs):
     directory = run_simulation_if_new_params(eng, original_videofile,**kwargs)
+    shutil.copy(original_videofile, os.path.join(directory, 'original_video.mp4'))
     # Get first frame of the original video and save as image
     with video_capture_context(original_videofile) as cap:
         frame_id, first_frame = extract_frame_at_time(cap,0)
