@@ -100,7 +100,7 @@ def compare_contours(orig_image_path, analyzed_image_path):
         match_score = cv2.matchShapes(contour1, contour2, cv2.CONTOURS_MATCH_I2, 0.0)
         return match_score
     else:
-        raise Exception("Could not discern contours to compare")
+        return float('inf')
 
 # product_dir_with_per_3 = "products/HeadMovementEllipse_0.130_0.130_7.000_7.000_60.000_10.000_3.000_1.000_2.000_1.000_3.000_1.000"
 # product_dir_with_per_0 = "products/HeadMovementEllipse_0.130_0.130_7.000_7.000_60.000_10.000_3.000_1.000_2.000_1.000_3.000_1.000"
