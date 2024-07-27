@@ -122,7 +122,6 @@ def extract_frames_and_compare(original_videofile, **kwargs):
         last_frame_id, last_frame = extract_frame_at_time(cap,-1)
         analyzed_frame_filename = os.path.join(directory, f'last_analysed_frame.png')
         cv2.imwrite(analyzed_frame_filename, last_frame)
-    return compare_contours(original_frame_filename, analyzed_frame_filename)
 
 EAR_range = [10.0]
 PER_range = [0.0, 2.0, 3.0, 8.0]
@@ -157,22 +156,22 @@ def list_files_with_prefix_os(prefix):
             files.append(entry)
     return files
 
-def generate_videos(outdir = 'generated_videos'):
+def generate_videos(outdir = 'generated_videos/second_run'):
     for PFD in PFD_range:
         for PFO in PFO_range:
             static_start_time = PFD+PFO
             generate_random_video(static_start_time, area_ratio = 1/16, outdir=outdir)
             generate_random_video(static_start_time, area_ratio = 1/16, outdir=outdir)
+            generate_random_video(static_start_time, area_ratio = 1/16, outdir=outdir)
             generate_random_video(static_start_time, area_ratio = 1/9, outdir=outdir)
             generate_random_video(static_start_time, area_ratio = 1/9, outdir=outdir)
-            generate_random_video(static_start_time, area_ratio = 1/25, outdir=outdir)
-            generate_random_video(static_start_time, area_ratio = 1/25, outdir=outdir)
+            generate_random_video(static_start_time, area_ratio = 1/9, outdir=outdir)
         
 
 suite = list(generate_suite_of_simulation_parameters())
 #print(suite)
 #generate_videos()
-videos =  list_files_with_prefix_os('gv_')
+videos =  list_files_with_prefix_os('run2_')
 engs = [None] * len(videos)
 # Create a MATLAB process for each video which runs it in all 135 possible combinations
 for i,_ in enumerate(videos):
@@ -184,14 +183,8 @@ for values in suite:
         res_futures[i] = measure_contour_detection(engs[i], video_name, **values)
     for i,video_name in enumerate(videos):
         res_futures[i].result()
-        results[i] = extract_frames_and_compare(video_name, **values)
-    for i,video_name in enumerate(videos):
-        print(f'Result for video {video_name} with parameters:')
-        print('    EAR = {},'.format(values['EAR']))
-        print('    PER = {},'.format(values['PER']))
-        print('    PFO = {},'.format(values['PFO']))
-        print('is: ')
-        print(results[i])
+        extract_frames_and_compare(video_name, **values)
+
 # Stop the MATLAB engines
 for i,_ in enumerate(videos):
     engs[i].quit()

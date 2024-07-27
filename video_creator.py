@@ -24,7 +24,7 @@ Completions.
 """
 def generate_random_bounded_vector(fps, interval):
     # See the paper, section 2.3 for the speeds measured in experiments
-    max_norm = 15.4/1.5 * fps * interval 
+    max_norm = 15.4/1.5 * fps * interval
     min_norm = 15.4/10 * fps * interval
     
     # Generate a random angle
@@ -37,8 +37,20 @@ def generate_random_bounded_vector(fps, interval):
     y = magnitude * np.sin(angle)
     
     return (int(x),int(y))
+
+def get_random_unit_vector(interval, fps, image_width, image_height):
+    x = np.random.uniform(-1,1)
+    y = np.sqrt(1-x*x)
+    return (int(x * image_width * interval),int(y * image_width * interval))
+
+
 def generate_random_directions(fps, num, interval):
     return [generate_random_bounded_vector(fps, interval) for _ in range(num)]
+
+
+
+def generate_random_directions2(num, interval, fps, image_width, image_height):
+    return [get_random_unit_vector(interval, fps, image_width, image_height) for _ in range(num)]
 
 
 def get_random_point(width, height):
@@ -73,7 +85,7 @@ def scale_and_center_points(points, area_ratio, width, height):
     
     # Apply translation
     centered_hull = hull + translation
-    
+
     current_area = cv2.contourArea(hull)
     if current_area == 0:
         raise ValueError("Current area of the convex hull is zero.")
@@ -187,6 +199,20 @@ def generate_random_movement_onset_in_frames(perceptual_fading_onset, fps):
 # # # Create the video
 # output_video_file = 'moving_blob_video.mp4'
 # create_moving_blob_video(output_video_file, image_width, image_height, fps, duration, interval, directions, movement_onset, blob_points)
+from moviepy.editor import VideoFileClip
+from moviepy.video.fx.all import speedx
+
+def double_video_length(input_path, output_path):
+    """ Hotfix because the generated videos were too fast"""
+    # Load the original video
+    clip = VideoFileClip(input_path)
+    
+    # Double the duration of the video
+    slowed_clip = speedx(clip, factor=0.5)
+    
+    # Write the result to a file
+    slowed_clip.write_videofile(output_path, logger=None)
+
 
 def generate_random_video(static_start_time, outdir = 'generated_videos', image_width = 504, image_height = 360, fps = 30, interval = 0.1, area_ratio = 1/16):
     directions = generate_random_directions(fps, 4, interval)
@@ -199,6 +225,44 @@ def generate_random_video(static_start_time, outdir = 'generated_videos', image_
     # # Create the video
     now = int(datetime.utcnow().timestamp())
     start_time_in_frames = int (static_start_time * fps)
+    output_video_name = f'run2_size_{area_ratio:.3f}_static_start_{start_time_in_frames}_real_movement_start_{movement_onset}_utc_{now}.mp4'
+    out_file = os.path.join(outdir, output_video_name)
+    create_moving_blob_video(out_file, image_width, image_height, fps, duration, interval, directions, movement_onset, blob_points)
+    #Hotfix: Double the length for the speed to match the examples
+    #double_video_length(out_file, os.path.join(outdir, f'doubled_gv_{output_video_name}'))
+
+def create_equilateral_triangle_image(width, height, triangle_size, color=(255, 255, 255), background_color=(0, 0, 0)):
+    # Calculate the vertices of the equilateral triangle
+    h = int(triangle_size * np.sqrt(3) / 2)  # Height of the equilateral triangle
+    vertices = np.array([
+        (width // 2, height // 2 - h // 2),  # Top vertex
+        (width // 2 - triangle_size // 2, height // 2 + h // 2),  # Bottom left vertex
+        (width // 2 + triangle_size // 2, height // 2 + h // 2)   # Bottom right vertex
+    ], np.int32)
+
+    return vertices
+
+    # Draw the equilateral triangle
+    cv2.fillPoly(image, [vertices], color)
+
+    return image
+
+
+def generate_triangle_movement(static_start_time = 2, outdir = 'generated_videos', image_width = 504, image_height = 360, fps = 30, interval = 0.1):
+    triangle_size = 150  # Size of the triangle
+    blob_points = create_equilateral_triangle_image(image_width, image_height, triangle_size)
+    blob_points = scale_and_center_points(blob_points, 1, image_width, image_height)
+    directions = generate_random_directions(fps, 3, interval)
+    print(directions)
+    movement_onset = generate_random_movement_onset_in_frames(static_start_time, fps) # 2 seconds of being still
+    duration = get_minimal_duration_of_video(fps,interval, len(directions), movement_onset)  # Duration in seconds
+    # Creating a video or other usage can proceed with the `blob_points` as needed
+    # # Create the video
+    now = int(datetime.utcnow().timestamp())
+    start_time_in_frames = int (static_start_time * fps)
     output_video_name = f'static_start_{start_time_in_frames}_real_movement_start_{movement_onset}_utc_{now}.mp4'
     out_file = os.path.join(outdir, output_video_name)
     create_moving_blob_video(out_file, image_width, image_height, fps, duration, interval, directions, movement_onset, blob_points)
+    double_video_length(out_file, os.path.join(outdir, f'doubled_gv_{output_video_name}.mp4'))
+
+#generate_triangle_movement(2)
