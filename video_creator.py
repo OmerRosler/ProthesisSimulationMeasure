@@ -1,8 +1,7 @@
+import os
 import cv2
 import numpy as np
 from datetime import datetime
-
-perceptual_fading_onset = 2 # 2 seconds
 
 def get_minimal_duration_of_video(fps, interval, num_of_directions, movement_onset_in_frames):
     """ This is the length of back and forth movement starting with an onset. 
@@ -24,11 +23,12 @@ Saturday:
 Completions.
 """
 def generate_random_bounded_vector(fps, interval):
+    # See the paper, section 2.3 for the speeds measured in experiments
+    max_norm = 15.4/1.5 * fps * interval 
+    min_norm = 15.4/10 * fps * interval
+    
     # Generate a random angle
     angle = np.random.uniform(0, 2 * np.pi)
-    # See the paper, section 2.3 for the speeds measured in experiments
-    max_norm = 15.4/1.5 * fps * interval
-    min_norm = 15.4/10 * fps * interval
     # Generate a random magnitude within the bounds
     magnitude = np.random.uniform(min_norm, max_norm)
     
@@ -98,7 +98,7 @@ def generate_blob_points(area_ratio, width, height):
 
 def create_moving_blob_video(output_file, width, height, fps, duration, interval, directions, movement_onset_in_frames, blob_points):
     # Initialize the video writer
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video_writer = cv2.VideoWriter(output_file, fourcc, fps, (width, height), isColor=False)
 
     num_frames = int(fps * duration)
@@ -166,7 +166,6 @@ def create_moving_blob_video(output_file, width, height, fps, duration, interval
 
     # Release the video writer
     video_writer.release()
-    print(f"Video saved as {output_file}")
 
 def generate_random_movement_onset_in_frames(perceptual_fading_onset, fps):
     """ Potential second too fast or too early"""
@@ -189,24 +188,17 @@ def generate_random_movement_onset_in_frames(perceptual_fading_onset, fps):
 # output_video_file = 'moving_blob_video.mp4'
 # create_moving_blob_video(output_video_file, image_width, image_height, fps, duration, interval, directions, movement_onset, blob_points)
 
-def generate_random_video(image_width = 504, image_height = 360, fps = 30, interval = 0.1, static_start_length = perceptual_fading_onset, area_ratio = 1/16):
+def generate_random_video(static_start_time, outdir = 'generated_videos', image_width = 504, image_height = 360, fps = 30, interval = 0.1, area_ratio = 1/16):
     directions = generate_random_directions(fps, 4, interval)
-    movement_onset = generate_random_movement_onset_in_frames(static_start_length, fps) # 2 seconds of being still
+    movement_onset = generate_random_movement_onset_in_frames(static_start_time, fps) # 2 seconds of being still
     duration = get_minimal_duration_of_video(fps,interval,len(directions),movement_onset)  # Duration in seconds
     # Generate random blob points
     blob_points = generate_blob_points(area_ratio, image_width, image_height)
 
     # Creating a video or other usage can proceed with the `blob_points` as needed
     # # Create the video
-    onset_float = (movement_onset - static_start_length)/ fps
     now = int(datetime.utcnow().timestamp())
-    output_video_file = f'generated_video_onset_{onset_float:.4f}_utc_{now}.mp4'
-    create_moving_blob_video(output_video_file, image_width, image_height, fps, duration, interval, directions, movement_onset, blob_points)
-
-generate_random_video()
-generate_random_video()
-generate_random_video()
-generate_random_video()
-generate_random_video()
-generate_random_video()
-generate_random_video()
+    start_time_in_frames = int (static_start_time * fps)
+    output_video_name = f'static_start_{start_time_in_frames}_real_movement_start_{movement_onset}_utc_{now}.mp4'
+    out_file = os.path.join(outdir, output_video_name)
+    create_moving_blob_video(out_file, image_width, image_height, fps, duration, interval, directions, movement_onset, blob_points)

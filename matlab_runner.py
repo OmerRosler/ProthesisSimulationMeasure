@@ -10,6 +10,7 @@ import matlab.engine
 
 from extract_frames_from_video import extract_frame_at_time, video_capture_context
 from compare_images import compare_contours
+from video_creator import generate_random_video
 
 default_values = {'SigmaX':0.13,
     'SigmaY':0.13,
@@ -123,14 +124,16 @@ def extract_frames_and_compare(original_videofile, **kwargs):
         cv2.imwrite(analyzed_frame_filename, last_frame)
     return compare_contours(original_frame_filename, analyzed_frame_filename)
 
+EAR_range = [10.0]
+PER_range = [0.0, 2.0, 3.0, 8.0]
+PFO_range = [0.5,1.0, 1.5, 2.0, 2.5, 3.0]
+PFD_range = [2.0]
+
 def generate_suite_of_simulation_parameters():
     """ These values were tested in the paper, see Table 3"""
     # For the temporal aspects, only EAR = 10 is used
     #EAR_range = [6.0, 10.0, 30.0]
-    EAR_range = [10.0]
-    PER_range = [0.0, 3.0]
-    PFO_range = [0.5,1.0]
-    PFD_range = [2.0]
+
     for EAR,PER,PFO,PFD in itertools.product(EAR_range, PER_range,PFO_range, PFD_range):
         values = copy.deepcopy(default_values)
         values['EAR'] = EAR
@@ -140,9 +143,36 @@ def generate_suite_of_simulation_parameters():
         yield values
 
 
+def list_files_os(directory):
+    files = []
+    for entry in os.listdir(directory):
+        if os.path.isfile(os.path.join(directory, entry)):
+            files.append(os.path.join(directory, entry))
+    return files
+def list_files_with_prefix_os(prefix):
+    files = []
+    current_directory = os.getcwd()
+    for entry in os.listdir(current_directory):
+        if os.path.isfile(entry) and entry.startswith(prefix):
+            files.append(entry)
+    return files
+
+def generate_videos(outdir = 'generated_videos'):
+    for PFD in PFD_range:
+        for PFO in PFO_range:
+            static_start_time = PFD+PFO
+            generate_random_video(static_start_time, area_ratio = 1/16, outdir=outdir)
+            generate_random_video(static_start_time, area_ratio = 1/16, outdir=outdir)
+            generate_random_video(static_start_time, area_ratio = 1/9, outdir=outdir)
+            generate_random_video(static_start_time, area_ratio = 1/9, outdir=outdir)
+            generate_random_video(static_start_time, area_ratio = 1/25, outdir=outdir)
+            generate_random_video(static_start_time, area_ratio = 1/25, outdir=outdir)
+        
+
 suite = list(generate_suite_of_simulation_parameters())
-print(suite)
-videos = ['HeadMovementEllipse.mp4', 'HeadMovementRect.mp4', 'HeadMovementTriangle.mp4']
+#print(suite)
+#generate_videos()
+videos =  list_files_with_prefix_os('gv_')
 engs = [None] * len(videos)
 # Create a MATLAB process for each video which runs it in all 135 possible combinations
 for i,_ in enumerate(videos):
