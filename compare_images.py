@@ -135,7 +135,7 @@ class clockwise_angle_and_distance():
         normalized = [vector[0]/lenvector, vector[1]/lenvector]
         dotprod  = normalized[0]*refvec[0] + normalized[1]*refvec[1] # x1*x2 + y1*y2
         diffprod = refvec[1]*normalized[0] - refvec[0]*normalized[1] # x1*y2 - y1*x2
-        angle = np.atan2(diffprod, dotprod)
+        angle = np.arctan2(diffprod, dotprod)
         # Negative angles represent counter-clockwise angles so we need to 
         # subtract them from 2*pi (360 degrees)
         if angle < 0:
@@ -199,7 +199,7 @@ def compare_contours(orig_image_path, analyzed_image_path, **kwargs):
     if not contours1:
         return float('inf')
     contour1 = contours1[0]
-    display_both_contours(orig, contours1, merged2)
+    #display_both_contours(orig, contours1, merged2)
     # Compare contours using matchShapes
     match_score = cv2.matchShapes(contour1, merged2, cv2.CONTOURS_MATCH_I2, 0.0)
     return match_score
@@ -212,6 +212,7 @@ def get_generated_video(full_path):
     orig_path = os.path.join(full_path, 'first_orig_frame.png')
     analysed_path = os.path.join(full_path, 'last_analysed_frame.png')
     if not os.path.isfile(orig_path):
+        print(orig_path)
         raise ValueError("Database error 2")
     if not os.path.isfile(analysed_path):
         raise ValueError("Database error 3")
@@ -231,14 +232,15 @@ def iterate_generated_videos(directory_path = 'products'):
         #         raise ValueError('syntesis is wrong')
         #     yield entry, orig_path,analysed_path
 
-def reduce_suite(orig, defaults):
-    for k,def_v in defaults.items():
-        real_v = orig.pop(k)
-        if not def_v == real_v:
-            print(k)
-        assert(def_v == real_v)
-    return orig
+# def reduce_suite(orig, defaults):
+#     for k,def_v in defaults.items():
+#         real_v = orig.pop(k)
+#         if not def_v == real_v:
+#             print(k)
+#         assert(def_v == real_v)
+#     return orig
 
+# These are always used for the dataset we ran on
 default_kwargs = {
 'SigmaX' : 0.13,
 'SigmaY' : 0.13,
@@ -246,69 +248,69 @@ default_kwargs = {
 'height' : 217
 }
 
-default_values_for_suite = {'SigmaX':0.13,
-    'SigmaY':0.13,
-    'X0':7.0,
-    'Y0':7.0,
-    'DFR':60.0,
-    #'EAR':10.0,
-    #'PFD':10.0, # Needs to ask the author
-    'Polarity':1,
-    'ElectrodeArraySize':3,
-    'ElectrodeArrayStructure':1
-}
+# default_values_for_suite = {'SigmaX':0.13,
+#     'SigmaY':0.13,
+#     'X0':7.0,
+#     'Y0':7.0,
+#     'DFR':60.0,
+#     #'EAR':10.0,
+#     #'PFD':10.0, # Needs to ask the author
+#     'Polarity':1,
+#     'ElectrodeArraySize':3,
+#     'ElectrodeArrayStructure':1
+# }
 
-def extract_relevant_suite_for_original_videos(dir_name):
-    params = extract_parameters_from_dir_name(dir_name)
-    vid_name = params.pop('video_name')
-    #print(f'suite is {params}')
-    EAR = params.pop('EAR')
-    PFD = params.pop('PFD')
-    reduced_suite = reduce_suite(params, default_values_for_suite)
-    return vid_name, reduced_suite
+# def extract_relevant_suite_for_original_videos(dir_name):
+#     params = extract_parameters_from_dir_name(dir_name)
+#     vid_name = params.pop('video_name')
+#     #print(f'suite is {params}')
+#     EAR = params.pop('EAR')
+#     PFD = params.pop('PFD')
+#     reduced_suite = reduce_suite(params, default_values_for_suite)
+#     return vid_name, reduced_suite
 
-def get_folder_suffix_reduced_suite(reduced_suite):
-    SigmaX = reduced_suite.get('SigmaX', 0.13)
-    SigmaY = reduced_suite.get('SigmaY', 0.13)
-    X0 = reduced_suite.get('X0', 7.0)
-    Y0 = reduced_suite.get('Y0', 7.0)
-    DFR = reduced_suite.get('DFR', 60.0)
-    EAR = reduced_suite.get('EAR', 10.0)
-    PER = reduced_suite.get('PER', 2.0)
-    PFO = reduced_suite.get('PFO', 10.0)
-    PFD = reduced_suite.get('PFD', 2.0)
-    Polarity = reduced_suite.get('Polarity', 1)
-    ElectrodeArraySize = reduced_suite.get('ElectrodeArraySize', 3)
-    ElectrodeArrayStructure = reduced_suite.get('ElectrodeArrayStructure', 1)
+# def get_folder_suffix_reduced_suite(reduced_suite):
+#     SigmaX = reduced_suite.get('SigmaX', 0.13)
+#     SigmaY = reduced_suite.get('SigmaY', 0.13)
+#     X0 = reduced_suite.get('X0', 7.0)
+#     Y0 = reduced_suite.get('Y0', 7.0)
+#     DFR = reduced_suite.get('DFR', 60.0)
+#     EAR = reduced_suite.get('EAR', 10.0)
+#     PER = reduced_suite.get('PER', 2.0)
+#     PFO = reduced_suite.get('PFO', 10.0)
+#     PFD = reduced_suite.get('PFD', 2.0)
+#     Polarity = reduced_suite.get('Polarity', 1)
+#     ElectrodeArraySize = reduced_suite.get('ElectrodeArraySize', 3)
+#     ElectrodeArrayStructure = reduced_suite.get('ElectrodeArrayStructure', 1)
 
-    return f'{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}'
+#     return f'{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}'
 
-def get_folder_name(video_name, reduced_suite):
-    suite_suffix = get_folder_suffix_reduced_suite(reduced_suite)
-    return f'products/{video_name}_{suite_suffix}'
+# def get_folder_name(video_name, reduced_suite):
+#     suite_suffix = get_folder_suffix_reduced_suite(reduced_suite)
+#     return f'products/{video_name}_{suite_suffix}'
 
-def workaround_lambda(x):
-    d, _1, _2 = x
-    return extract_relevant_suite_for_original_videos(d)
-suites_raw = list(map(workaround_lambda, iterate_generated_videos()))
+# def workaround_lambda(x):
+#     d, _1, _2 = x
+#     return extract_relevant_suite_for_original_videos(d)
+# suites_raw = list(map(workaround_lambda, iterate_generated_videos()))
 
 
-# Sort the pairs by the first element
-suites_raw.sort(key=itemgetter(0))
-# Group by the first element and convert to a dictionary of lists
-suites_dict = {key: [item[1] for item in group] for key, group in groupby(suites_raw, key=itemgetter(0))}
+# # Sort the pairs by the first element
+# suites_raw.sort(key=itemgetter(0))
+# # Group by the first element and convert to a dictionary of lists
+# suites_dict = {key: [item[1] for item in group] for key, group in groupby(suites_raw, key=itemgetter(0))}
 
-def get_result_files(video_name, reduced_suite):
-    assert(reduced_suite in suites_dict[video_name])
-    formatted_name = get_folder_name(video_name, reduced_suite)
-    return get_generated_video(formatted_name)
+# def get_result_files(video_name, reduced_suite):
+#     assert(reduced_suite in suites_dict[video_name])
+#     formatted_name = get_folder_name(video_name, reduced_suite)
+#     return get_generated_video(formatted_name)
     
 
-for v in suites_dict.keys():
-    for suite in suites_dict[v]:
-        print(v, suite)
-        orig, anal = get_result_files(v, suite)
-        print(compare_contours(orig,anal, **default_kwargs))
+# for v in suites_dict.keys():
+#     for suite in suites_dict[v]:
+#         print(v, suite)
+#         orig, anal = get_result_files(v, suite)
+#         print(compare_contours(orig,anal, **default_kwargs))
 # suites={}
 # lst = list(iterate_generated_videos())
 # for e,_,_ in lst:
@@ -324,3 +326,22 @@ for v in suites_dict.keys():
     #if not np.isinf(res):
     #    print(e)
     #    print(compare_contours(o,a, **default_kwargs))
+def compare(outfile = 'run2_raw_results.txt'):
+    with open(outfile, 'w') as file:
+        for e,o,a in iterate_generated_videos('run2'):
+            res = compare_contours(o, a, **default_kwargs)
+            file.write(f'{e}, {res}\n')
+
+compare()
+
+# def remove_noise_from_name(name):
+#     format_start = 'run2_size_{start}_'
+
+# def find_all_absolute_no_detection(infile= 'run2_raw_results.txt'):
+#     with open(infile, 'r') as file:
+#         for line in file:
+#             name, value = line.strip().split(', ')
+#             if value == "1.7976931348623157e+308":
+#                 print(name)
+
+# find_all_absolute_no_detection()
