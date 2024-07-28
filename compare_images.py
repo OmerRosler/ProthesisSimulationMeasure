@@ -4,6 +4,8 @@ from itertools import groupby
 from operator import itemgetter
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+
 from skimage.morphology import skeletonize
 from skimage import img_as_bool, img_as_ubyte
 from parse import parse
@@ -39,11 +41,16 @@ def combine_contours(contours, shape):
     combined_contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return combined_contours[0]
     
-def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV_dgrees = 15.4):
+def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV_dgrees = 15.4, generate_image_compariosn = False):
     
     # Loading the image
     image = cv2.imread(image_path)
 
+
+    if generate_image_compariosn:
+        subplot_images = []
+        subplot_names = ['Original', 'Closed', 'Skeletonized', 'Merged']
+        subplot_images.append(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
     # Get approximate phosphene shape using the input parameteres
     get_radius_in_pixels = lambda sigma, width: round(sigma/total_FOV_dgrees*width)+1
@@ -73,15 +80,51 @@ def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV
         cv2.drawContours(img_filled, [contour], -1, (255), thickness=cv2.FILLED)
     #cv2.drawContours(img_filled, [final_contour], -1, (255), thickness=cv2.FILLED)
     
+    if generate_image_compariosn:
+        subplot_images.append(cv2.cvtColor(img_filled, cv2.COLOR_BGR2RGB))
+
     # Create skeleton of the closed shape
     skeleton = skeletonize_image(img_filled)
 
     # Convert skeleton to uint8 format for contour finding
     skeleton_uint8 = img_as_ubyte(skeleton)
+
+    if generate_image_compariosn:
+        subplot_images.append(cv2.cvtColor(skeleton_uint8, cv2.COLOR_BGR2RGB))
     
     #merged_contours = merge_contours(contours, distance_threshold=50)
-    
-    return skeleton_uint8
+
+    contours2, _ = cv2.findContours(skeleton_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    merged2 = merge_contours2(contours2)
+
+
+    if generate_image_compariosn:
+        empty_image = np.zeros_like(subplot_images[0])
+        # Draw the convex hull
+        cv2.polylines(empty_image, [merged2], isClosed=True, color=(0, 255, 0), thickness=2)
+
+        subplot_images.append(cv2.cvtColor(empty_image, cv2.COLOR_BGR2RGB))
+        
+        
+        #subplot_images.append(cv2.cvtColor(merged2, cv2.COLOR_BGR2RGB))
+        
+        # Create a grid of subplots (2 rows and 2 columns)
+        fig, axs = plt.subplots(2, 2, figsize=(12, 12))
+
+        # Flatten the axs array for easy iteration
+        axs = axs.flatten()
+
+        # Plot each image in a subplot with titles
+        for ax, img, title in zip(axs, subplot_images, subplot_names):
+            ax.imshow(img)  # Convert BGR to RGB
+            ax.set_title(title)  # Set title for each subplot
+            ax.axis('off')  # Hide the axes
+
+        image_dir = os.path.dirname(image_path)
+        fig_file_name = os.path.join(image_dir, 'compare_pipeline')
+        fig.savefig(fig_file_name)
+        plt.close(fig)
+    return merged2
 
 def merge_contours2(contours):
     list_of_pts = [] 
@@ -191,8 +234,7 @@ def compare_contours(orig_image_path, analyzed_image_path, **kwargs):
     contours1, _ = cv2.findContours(orig_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     analysed = analyse_simulated_frame(analyzed_image_path, **kwargs)
-    contours2, _ = cv2.findContours(analysed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    merged2 = merge_contours2(contours2)
+    
     #combined_analysed_contour = combine_contours(contours2, np.shape(analysed))
 
     # Ensure there is at least one contour to compare
@@ -201,7 +243,7 @@ def compare_contours(orig_image_path, analyzed_image_path, **kwargs):
     contour1 = contours1[0]
     #display_both_contours(orig, contours1, merged2)
     # Compare contours using matchShapes
-    match_score = cv2.matchShapes(contour1, merged2, cv2.CONTOURS_MATCH_I2, 0.0)
+    match_score = cv2.matchShapes(contour1, analysed, cv2.CONTOURS_MATCH_I2, 0.0)
     return match_score
 
     
