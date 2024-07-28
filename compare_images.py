@@ -1,10 +1,18 @@
 import os
 import cv2
+from itertools import groupby
+from operator import itemgetter
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.morphology import skeletonize
 from skimage import img_as_bool, img_as_ubyte
+from parse import parse
 
+format_witout_dir = "{video_name}_{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}"
+dir_name_format_string = "products/{video_name}_{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}"
+def extract_parameters_from_dir_name(dirname):
+    # Parse the input string
+    return parse(format_witout_dir, dirname).named
 
 def skeletonize_image(binary_img):
     # Convert to binary image using thresholding
@@ -125,18 +133,39 @@ def compare_contours(orig_image_path, analyzed_image_path, **kwargs):
     else:
         return float('inf')
     
-    
+def get_generated_video(full_path):
+    if not os.path.isdir(full_path):
+        print(full_path)
+        raise ValueError("Database error 1")
+    orig_path = os.path.join(full_path, 'first_orig_frame.png')
+    analysed_path = os.path.join(full_path, 'last_analysed_frame.png')
+    if not os.path.isfile(orig_path):
+        raise ValueError("Database error 2")
+    if not os.path.isfile(analysed_path):
+        raise ValueError("Database error 3")
+    return orig_path, analysed_path
+
 def iterate_generated_videos(directory_path = 'products'):
     for entry in os.listdir(directory_path):
         full_path = os.path.join(directory_path, entry)
-        if os.path.isdir(full_path):
-            orig_path = os.path.join(full_path, 'first_orig_frame.png')
-            analysed_path = os.path.join(full_path, 'last_analysed_frame.png')
-            if not os.path.isfile(orig_path):
-                raise ValueError('syntesis is wrong')
-            if not os.path.isfile(analysed_path):
-                raise ValueError('syntesis is wrong')
-            yield entry, orig_path,analysed_path
+        o, a = get_generated_video(full_path)
+        yield entry, o, a
+        # if os.path.isdir(full_path):
+        #     orig_path = os.path.join(full_path, 'first_orig_frame.png')
+        #     analysed_path = os.path.join(full_path, 'last_analysed_frame.png')
+        #     if not os.path.isfile(orig_path):
+        #         raise ValueError('syntesis is wrong')
+        #     if not os.path.isfile(analysed_path):
+        #         raise ValueError('syntesis is wrong')
+        #     yield entry, orig_path,analysed_path
+
+def reduce_suite(orig, defaults):
+    for k,def_v in defaults.items():
+        real_v = orig.pop(k)
+        if not def_v == real_v:
+            print(k)
+        assert(def_v == real_v)
+    return orig
 
 default_kwargs = {
 'SigmaX' : 0.13,
@@ -144,8 +173,81 @@ default_kwargs = {
 'width' : 217,
 'height' : 217
 }
-for e,o,a in iterate_generated_videos():
-    res = compare_contours(o,a, **default_kwargs)
-    if not np.isinf(res):
-        print(e)
-        print(compare_contours(o,a, **default_kwargs))
+
+default_values_for_suite = {'SigmaX':0.13,
+    'SigmaY':0.13,
+    'X0':7.0,
+    'Y0':7.0,
+    'DFR':60.0,
+    #'EAR':10.0,
+    #'PFD':10.0, # Needs to ask the author
+    'Polarity':1,
+    'ElectrodeArraySize':3,
+    'ElectrodeArrayStructure':1
+}
+
+def extract_relevant_suite_for_original_videos(dir_name):
+    params = extract_parameters_from_dir_name(dir_name)
+    vid_name = params.pop('video_name')
+    #print(f'suite is {params}')
+    EAR = params.pop('EAR')
+    PFD = params.pop('PFD')
+    reduced_suite = reduce_suite(params, default_values_for_suite)
+    return vid_name, reduced_suite
+
+def get_folder_suffix_reduced_suite(reduced_suite):
+    SigmaX = reduced_suite.get('SigmaX', 0.13)
+    SigmaY = reduced_suite.get('SigmaY', 0.13)
+    X0 = reduced_suite.get('X0', 7.0)
+    Y0 = reduced_suite.get('Y0', 7.0)
+    DFR = reduced_suite.get('DFR', 60.0)
+    EAR = reduced_suite.get('EAR', 10.0)
+    PER = reduced_suite.get('PER', 2.0)
+    PFO = reduced_suite.get('PFO', 10.0)
+    PFD = reduced_suite.get('PFD', 2.0)
+    Polarity = reduced_suite.get('Polarity', 1)
+    ElectrodeArraySize = reduced_suite.get('ElectrodeArraySize', 3)
+    ElectrodeArrayStructure = reduced_suite.get('ElectrodeArrayStructure', 1)
+
+    return f'{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}'
+
+def get_folder_name(video_name, reduced_suite):
+    suite_suffix = get_folder_suffix_reduced_suite(reduced_suite)
+    return f'products/{video_name}_{suite_suffix}'
+
+def workaround_lambda(x):
+    d, _1, _2 = x
+    return extract_relevant_suite_for_original_videos(d)
+suites_raw = list(map(workaround_lambda, iterate_generated_videos()))
+
+
+# Sort the pairs by the first element
+suites_raw.sort(key=itemgetter(0))
+# Group by the first element and convert to a dictionary of lists
+suites_dict = {key: [item[1] for item in group] for key, group in groupby(suites_raw, key=itemgetter(0))}
+
+def get_result_files(video_name, reduced_suite):
+    assert(reduced_suite in suites_dict[video_name])
+    formatted_name = get_folder_name(video_name, reduced_suite)
+    print(formatted_name)
+    return get_generated_video(formatted_name)
+    
+
+for v in suites_dict.keys():
+    for suite in suites_dict[v]:
+        print(get_result_files(v, suite))
+# suites={}
+# lst = list(iterate_generated_videos())
+# for e,_,_ in lst:
+#     suites[e] = []
+# for e,o,a in lst:
+#     suites[e].append(extract_relevant_suite_for_original_videos(e))
+
+#print(f'suites are {suites}')
+
+
+    
+    #res = compare_contours(o,a, **default_kwargs)
+    #if not np.isinf(res):
+    #    print(e)
+    #    print(compare_contours(o,a, **default_kwargs))

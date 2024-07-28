@@ -10,17 +10,10 @@ def get_minimal_duration_of_video(fps, interval, num_of_directions, movement_ons
     length_in_frames += 2*fps*interval * num_of_directions
     return length_in_frames/fps
 """
-TODOs:
-Friday:
-1. Validate there is a single contour in all cases (that it does compare the entire shape)
-4. Rewrite the python to form a pipeline (the resolution in `resize` should be a parameter)
-5. Run it as pipeline on the original input videos for a benchmark
-6. Run it overnight on a matrix of parameters and plot the results
-Saturday:
-7. Write up the results as latex.
-8. Create Beamer presentation from it.
-9. Create blobs with more complex features (less symmetrical) and see if it still works
-Completions.
+TODOs in code:
+1. Understand if merging contours is feasible for the new run
+2. Organize the code for being publically viewed
+3. Run data analysis on the results
 """
 def generate_random_bounded_vector(fps, interval):
     # See the paper, section 2.3 for the speeds measured in experiments

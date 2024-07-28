@@ -9,7 +9,7 @@ import copy
 import matlab.engine
 
 from extract_frames_from_video import extract_frame_at_time, video_capture_context
-from compare_images import compare_contours
+from compare_images import compare_contours, dir_name_format_string
 from video_creator import generate_random_video
 
 default_values = {'SigmaX':0.13,
@@ -32,7 +32,7 @@ def file_iterator(directory):
         if os.path.isfile(file_path):
             yield file_path
 
-dir_name_format_string = "products/{video_name}_{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}"
+#dir_name_format_string = "products/{video_name}_{SigmaX:.3f}_{SigmaY:.3f}_{X0:.3f}_{Y0:.3f}_{DFR:.3f}_{EAR:.3f}_{PER:.3f}_{PFO:.3f}_{PFD:.3f}_{Polarity:.3f}_{ElectrodeArraySize:.3f}_{ElectrodeArrayStructure:.3f}"
 
 def validate_suite_exists(video_name, **kwargs):
     directory = dir_name_format_string.format(video_name = video_name, **kwargs)
