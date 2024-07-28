@@ -29,6 +29,16 @@ def skeletonize_image(binary_img):
     
     return skeleton_uint8
 
+# Function to combine contours into one shape
+def combine_contours(contours, shape):
+    mask = np.zeros(shape, dtype=np.uint8)
+    if not contours:
+        return mask
+    for contour in contours:
+        cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
+    combined_contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return combined_contours[0]
+    
 def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV_dgrees = 15.4):
     
     # Loading the image
@@ -57,8 +67,11 @@ def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV
     if not binary_contours:
         return img_filled
     # Draw and fill contours
+    #final_contour = combine_contours(binary_contours, np.shape(img_filled))
+
     for contour in binary_contours:
         cv2.drawContours(img_filled, [contour], -1, (255), thickness=cv2.FILLED)
+    #cv2.drawContours(img_filled, [final_contour], -1, (255), thickness=cv2.FILLED)
     
     # Create skeleton of the closed shape
     skeleton = skeletonize_image(img_filled)
@@ -69,6 +82,70 @@ def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV
     #merged_contours = merge_contours(contours, distance_threshold=50)
     
     return skeleton_uint8
+
+def merge_contours2(contours):
+    list_of_pts = [] 
+    for ctr in contours:
+        list_of_pts += [pt[0] for pt in ctr]
+    origin = np.array(list_of_pts).mean(axis = 0) # get origin
+    clock_ang_dist = clockwise_angle_and_distance(origin) # set origin
+    list_of_pts = sorted(list_of_pts, key=clock_ang_dist) # use to sort
+    ctr = np.array(list_of_pts).reshape((-1,1,2)).astype(np.int32)
+    ctr = cv2.convexHull(ctr)
+    return ctr
+
+class clockwise_angle_and_distance():
+    '''
+    A class to tell if point is clockwise from origin or not.
+    This helps if one wants to use sorted() on a list of points.
+
+    Parameters
+    ----------
+    point : ndarray or list, like [x, y]. The point "to where" we g0
+    self.origin : ndarray or list, like [x, y]. The center around which we go
+    refvec : ndarray or list, like [x, y]. The direction of reference
+
+    use: 
+        instantiate with an origin, then call the instance during sort
+    reference: 
+    https://stackoverflow.com/questions/41855695/sorting-list-of-two-dimensional-coordinates-by-clockwise-angle-using-python
+
+    Returns
+    -------
+    angle
+    
+    distance
+    
+
+    '''
+    def __init__(self, origin):
+        self.origin = origin
+
+    def __call__(self, point, refvec = [0, 1]):
+        if self.origin is None:
+            raise NameError("clockwise sorting needs an origin. Please set origin.")
+        # Vector between point and the origin: v = p - o
+        vector = [point[0]-self.origin[0], point[1]-self.origin[1]]
+        # Length of vector: ||v||
+        lenvector = np.linalg.norm(vector[0] - vector[1])
+        # If length is zero there is no angle
+        if lenvector == 0:
+            return -np.pi, 0
+        # Normalize vector: v/||v||
+        normalized = [vector[0]/lenvector, vector[1]/lenvector]
+        dotprod  = normalized[0]*refvec[0] + normalized[1]*refvec[1] # x1*x2 + y1*y2
+        diffprod = refvec[1]*normalized[0] - refvec[0]*normalized[1] # x1*y2 - y1*x2
+        angle = np.atan2(diffprod, dotprod)
+        # Negative angles represent counter-clockwise angles so we need to 
+        # subtract them from 2*pi (360 degrees)
+        if angle < 0:
+            return 2*np.pi+angle, lenvector
+        # I return first the angle because that's the primary sorting criterium
+        # but if two vectors have the same angle then the shorter distance 
+        # should come first.
+        return angle, lenvector
+
+
 
 # Function to merge nearby contours
 def merge_contours(contours, distance_threshold):
@@ -96,7 +173,8 @@ def display_both_contours(img, contours1, contours2):
     cv2.drawContours(new_img, contours1, -1, (0, 255, 0), 2)
     
     # Draw the second set of contours in red
-    cv2.drawContours(new_img, contours2, -1, (0, 0, 255), 2)
+    cv2.polylines(new_img, [contours2], isClosed=True, color=(0, 0, 255), thickness=2)
+    #cv2.drawContours(new_img, contours2, -1, (0, 0, 255), 2)
     
     # Display the new image with contours
     cv2.imshow('Contours on New Image', new_img)
@@ -114,24 +192,18 @@ def compare_contours(orig_image_path, analyzed_image_path, **kwargs):
     
     analysed = analyse_simulated_frame(analyzed_image_path, **kwargs)
     contours2, _ = cv2.findContours(analysed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    if len(contours2) > 1:
-        print("multiple contours")
-        display_both_contours(orig, contours1, contours2)
+    merged2 = merge_contours2(contours2)
+    #combined_analysed_contour = combine_contours(contours2, np.shape(analysed))
 
     # Ensure there is at least one contour to compare
-    if contours1 and contours2:
-        # print(len(contours1))
-        # print(len(contours2))
-        # Compare the first contour from each image
-        contour1 = contours1[0]
-        contour2 = contours2[0]
-
-        # Compare contours using matchShapes
-        match_score = cv2.matchShapes(contour1, contour2, cv2.CONTOURS_MATCH_I2, 0.0)
-        return match_score
-    else:
+    if not contours1:
         return float('inf')
+    contour1 = contours1[0]
+    display_both_contours(orig, contours1, merged2)
+    # Compare contours using matchShapes
+    match_score = cv2.matchShapes(contour1, merged2, cv2.CONTOURS_MATCH_I2, 0.0)
+    return match_score
+
     
 def get_generated_video(full_path):
     if not os.path.isdir(full_path):
@@ -229,13 +301,14 @@ suites_dict = {key: [item[1] for item in group] for key, group in groupby(suites
 def get_result_files(video_name, reduced_suite):
     assert(reduced_suite in suites_dict[video_name])
     formatted_name = get_folder_name(video_name, reduced_suite)
-    print(formatted_name)
     return get_generated_video(formatted_name)
     
 
 for v in suites_dict.keys():
     for suite in suites_dict[v]:
-        print(get_result_files(v, suite))
+        print(v, suite)
+        orig, anal = get_result_files(v, suite)
+        print(compare_contours(orig,anal, **default_kwargs))
 # suites={}
 # lst = list(iterate_generated_videos())
 # for e,_,_ in lst:
