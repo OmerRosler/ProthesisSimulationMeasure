@@ -1,0 +1,35 @@
+\begin{thebibliography}{1}
+
+\bibitem{stackoverflow}
+How to merge contours in opencv?
+\newblock \url{https://stackoverflow.com/a/65434912/5005049}.
+
+\bibitem{opencv_library}
+The opencv reference manual.
+\newblock \url{http://docs.opencv.org/}.
+
+\bibitem{paper_code}
+David Avraham, Jae-Hyun Jung, Yitzhak Yitzhaky, and Eli Peli.
+\newblock {MATLAB} code of prosthetic vision simulation.
+\newblock \url{https://matlab.mathworks.com/open/fileexchange/v1?id=116005},
+  2021.
+\newblock Version 2.0.
+
+\bibitem{main_paper}
+David Avraham, Jae-Hyun Jung, Yitzhak Yitzhaky, and Eli Peli.
+\newblock Retinal prosthetic vision simulation: Temporal aspects.
+\newblock {\em Journal of Neural Engineering}, 18:0460d9, 08 2021.
+
+\bibitem{our_code}
+Omer Rosler.
+\newblock Code and data used in this paper.
+\newblock \url{https://github.com/OmerRosler/ProthesisSimulationMeasure}.
+
+\bibitem{scikit-image}
+Stefan van~der Walt, Johannes~L Schönberger, Juan Nunez-Iglesias, François
+  Boulogne, Joshua~D Warner, Neil Yager, Emmanuelle Gouillart, Tony Yu, and the
+  scikit-image contributors.
+\newblock scikit-image: image processing in python.
+\newblock {\em PeerJ}, 2:e453, 2014.
+
+\end{thebibliography}
