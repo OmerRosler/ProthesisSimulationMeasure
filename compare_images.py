@@ -5,6 +5,7 @@ from operator import itemgetter
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
+from scipy.spatial.distance import cdist
 
 from skimage.morphology import skeletonize
 from skimage import img_as_bool, img_as_ubyte
@@ -31,21 +32,10 @@ def skeletonize_image(binary_img):
     
     return skeleton_uint8
 
-# Function to combine contours into one shape
-def combine_contours(contours, shape):
-    mask = np.zeros(shape, dtype=np.uint8)
-    if not contours:
-        return mask
-    for contour in contours:
-        cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
-    combined_contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    return combined_contours[0]
-    
 def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV_dgrees = 15.4, generate_image_compariosn = False):
     
     # Loading the image
     image = cv2.imread(image_path)
-
 
     if generate_image_compariosn:
         subplot_images = []
@@ -73,8 +63,6 @@ def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV
     img_filled = np.zeros_like(binary_img)
     if not binary_contours:
         return img_filled
-    # Draw and fill contours
-    #final_contour = combine_contours(binary_contours, np.shape(img_filled))
 
     for contour in binary_contours:
         cv2.drawContours(img_filled, [contour], -1, (255), thickness=cv2.FILLED)
@@ -92,10 +80,8 @@ def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV
     if generate_image_compariosn:
         subplot_images.append(cv2.cvtColor(skeleton_uint8, cv2.COLOR_BGR2RGB))
     
-    #merged_contours = merge_contours(contours, distance_threshold=50)
-
     contours2, _ = cv2.findContours(skeleton_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    merged2 = merge_contours2(contours2)
+    merged2 = merge_contours(contours2)
 
 
     if generate_image_compariosn:
@@ -123,10 +109,11 @@ def analyse_simulated_frame(image_path, SigmaX, SigmaY, width, height, total_FOV
         image_dir = os.path.dirname(image_path)
         fig_file_name = os.path.join(image_dir, 'compare_pipeline')
         fig.savefig(fig_file_name)
+        plt.show()
         plt.close(fig)
     return merged2
 
-def merge_contours2(contours):
+def merge_contours(contours):
     list_of_pts = [] 
     for ctr in contours:
         list_of_pts += [pt[0] for pt in ctr]
@@ -189,25 +176,6 @@ class clockwise_angle_and_distance():
         return angle, lenvector
 
 
-
-# Function to merge nearby contours
-def merge_contours(contours, distance_threshold):
-    """ Merge nearby contours within a certain distance threshold. """
-    merged_contours = []
-    while contours:
-        contour = contours.pop(0)
-        x, y, w, h = cv2.boundingRect(contour)
-        # Initialize the merged contour
-        merged_contour = contour
-        for other_contour in contours[:]:
-            x2, y2, w2, h2 = cv2.boundingRect(other_contour)
-            if abs(x - x2) < distance_threshold and abs(y - y2) < distance_threshold:
-                # Merge contours
-                merged_contour = np.concatenate((merged_contour, other_contour), axis=0)
-                contours.remove(other_contour)
-        merged_contours.append(merged_contour)
-    return merged_contours
-
 def display_both_contours(img, contours1, contours2):
     # Create a new blank image with the same dimensions as the original image
     new_img = np.zeros_like(img)
@@ -224,6 +192,41 @@ def display_both_contours(img, contours1, contours2):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+def align_and_normalize_contours(cnt1, cnt2):
+    # Compute the centroids
+    M1 = cv2.moments(cnt1)
+    M2 = cv2.moments(cnt2)
+    centroid1 = np.array([M1['m10'] / M1['m00'], M1['m01'] / M1['m00']])
+    centroid2 = np.array([M2['m10'] / M2['m00'], M2['m01'] / M2['m00']])
+    
+    # Align contours to their centroids
+    aligned_cnt1 = cnt1 - centroid1
+    aligned_cnt2 = cnt2 - centroid2
+    
+    # Normalize the contours to the same scale
+    norm_factor1 = np.linalg.norm(aligned_cnt1)
+    norm_factor2 = np.linalg.norm(aligned_cnt2)
+    normalized_cnt1 = aligned_cnt1 / norm_factor1
+    normalized_cnt2 = aligned_cnt2 / norm_factor2
+    
+    return normalized_cnt1, normalized_cnt2
+
+def measure_of_difference(contour1, contour2):
+    return cv2.matchShapes(contour1, contour2, cv2.CONTOURS_MATCH_I2, 0.0)
+
+def measure_of_difference2(contour1, contour2):
+    # Align and normalize the contours
+    aligned_cnt1, aligned_cnt2 = align_and_normalize_contours(contour1.squeeze(), contour2.squeeze())
+
+    # Ensure both contours have the same number of points by resampling if necessary
+    num_points = min(len(aligned_cnt1), len(aligned_cnt2))
+    aligned_cnt1 = cv2.resize(aligned_cnt1, (num_points, 2), interpolation=cv2.INTER_LINEAR)
+    aligned_cnt2 = cv2.resize(aligned_cnt2, (num_points, 2), interpolation=cv2.INTER_LINEAR)
+
+    # Compute the Euclidean distance between corresponding points
+    distances = cdist(aligned_cnt1, aligned_cnt2, 'euclidean')
+    mean_distance = np.mean(np.diagonal(distances))
+    return mean_distance
 def compare_contours(orig_image_path, analyzed_image_path, **kwargs):
     # Loading the image
     orig = cv2.imread(orig_image_path)
@@ -235,15 +238,14 @@ def compare_contours(orig_image_path, analyzed_image_path, **kwargs):
     
     analysed = analyse_simulated_frame(analyzed_image_path, **kwargs)
     
-    #combined_analysed_contour = combine_contours(contours2, np.shape(analysed))
-
     # Ensure there is at least one contour to compare
     if not contours1:
         return float('inf')
     contour1 = contours1[0]
     #display_both_contours(orig, contours1, merged2)
     # Compare contours using matchShapes
-    match_score = cv2.matchShapes(contour1, analysed, cv2.CONTOURS_MATCH_I2, 0.0)
+    display_both_contours(orig,contour1, analysed)
+    match_score = measure_of_difference2(contour1, analysed)
     return match_score
 
     
@@ -254,7 +256,6 @@ def get_generated_video(full_path):
     orig_path = os.path.join(full_path, 'first_orig_frame.png')
     analysed_path = os.path.join(full_path, 'last_analysed_frame.png')
     if not os.path.isfile(orig_path):
-        print(orig_path)
         raise ValueError("Database error 2")
     if not os.path.isfile(analysed_path):
         raise ValueError("Database error 3")
@@ -374,7 +375,26 @@ def compare(outfile = 'run2_raw_results.txt'):
             res = compare_contours(o, a, **default_kwargs)
             file.write(f'{e}, {res}\n')
 
-compare()
+#compare()
+
+def compare3(outfile = 'run3_raw_results.txt'):
+    #with open(outfile, 'w') as file:
+    for e,o,a in iterate_generated_videos('run3'):
+        res = compare_contours(o, a, **default_kwargs, generate_image_compariosn = False)
+        print(res)
+        #file.write(f'{e}, {res}\n')
+
+compare3()
+
+
+# directory = 'products'
+# for d,o,a in iterate_generated_videos(directory):
+#     compare_contours(o,a, generate_image_compariosn = True, **default_kwargs)
+# for entry in os.listdir(directory):
+#     full_path = os.path.join(directory, entry)
+#     # Check if the entry is a directory
+#     if os.path.isdir(full_path):
+#         print(full_path)
 
 # def remove_noise_from_name(name):
 #     format_start = 'run2_size_{start}_'
