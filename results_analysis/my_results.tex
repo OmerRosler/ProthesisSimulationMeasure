@@ -108,7 +108,11 @@ To test the first three conjectures, I created a dataset of videos of objects wh
 	\item Randomized {\it delayed or premature} start of the movement (relative to the Perceptual Fading Duration)
 	\item Randomized directions and speed of movement
 \end{enumerate}
+In total I created 35 random videos and ran the algorithm on them. \\
 To test the fourth claim, I ran the simulation code with different values for the PFO and PER.
+
+The values for PFO are 0.5, 1.0, 1.5, 2.0, 2.5, 3.0 (in seconds)\\
+The values for PER are 0.0, 2.0, 3.0, 8.0 (in seconds)
 
 \begin{remark}
 	I had trouble determining the actual speed used by the author. The paper cites a certain range in section 2.3, but the videos used in the simulation follow a much lower speed. \\
@@ -186,10 +190,8 @@ The fourth conjecture is also blatantly false.
 \end{figure}
 There is still an unexplained smaller number of videos with very high match scores. We do not understand this wholly and this needs further analysis. 
 
-\subsection{Comparing random directions to preferred ones}
-The rectangle video of the original author gave a strong signal (comparatively to the others). Therefore, we can use it as a benchmark. For the same temporal parameters, we run it with different directions of movement and got mixed results.
 \section{Conclusions}
-Most importantly, the shape we want to look at matters most. 
+Most importantly, the contour vision effect is real to a degree, and the shape we want to look at matters most. 
 
 We didn't disprove the second conjecture wholly. There could be a bias towards preferred directions of movement. We can definitely accept this, as the directions of movements are chosen by the user, and the training would be to choose these directions based on the perception of the object before the PFO.
 
